@@ -1,20 +1,22 @@
 package com.facerecognition.utils;
 
 import java.io.File;
+import java.io.FileInputStream;
 import java.io.IOException;
 
-import org.apache.http.HttpResponse;
-import org.apache.http.client.ClientProtocolException;
-import org.apache.http.util.EntityUtils;
 import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONObject;
 
-import com.android.facerecognition.ShowIdentityActivity;
-
 import android.app.Activity;
 import android.content.Context;
 import android.os.AsyncTask;
+
+import com.android.facerecognition.ShowIdentityActivity;
+import com.cloudinary.Cloudinary;
+import com.mashape.unirest.http.JsonNode;
+import com.mashape.unirest.http.Unirest;
+import com.mashape.unirest.http.exceptions.UnirestException;
 
 public class FetchIdentityTask extends AsyncTask<String, String, String> {
 
@@ -29,41 +31,39 @@ public class FetchIdentityTask extends AsyncTask<String, String, String> {
 
 		String responseString = "";
 
+		File file = new File(params[0]);
+		String url = "http://res.cloudinary.com/doi38h3hr/image/upload/v1413102074/afuzj1td4virweuqwsmw.jpg";
+		Cloudinary cloudinary = new Cloudinary(Cloudinary.asMap("cloud_name",
+				"doi38h3hr", "api_key", "876521916516342", "api_secret",
+				"00L0PfCC13iT_BGzmVNrsesuT0I"));
 		try {
-
-			// These code snippets use an open-source library.
-			// http://unirest.io/java
-			/*
-			 * HttpResponse<JsonNode> response1 = Unirest
-			 * .post("https://lambda-face-recognition.p.mashape.com/recognize")
-			 * .header("X-Mashape-Key",
-			 * "gMoueY07U1mshpinwogEUEk0B13Qp1TUNLejsnkH2IwTJ9iEWF")
-			 * .field("album", "TEST_NEW") .field("albumkey",
-			 * "7bcc2ac04255c7d4859547b05120c2535e84f624b72f9dd42959a0932a91e557"
-			 * ) .field("files", new File("IMG_20141010_114308239.jpg"))
-			 * .asJson();
-			 */
-
-			// convert parameters into JSON object
-			JSONObject holder = new JSONObject();
-			holder.put(Constants.KEY_ALBUM, Constants.VALUE_ALBUM);
-			holder.put(Constants.KEY_ALBUM_KEY, Constants.VALUE_ALBUM_KEY);
-			holder.put(Constants.KEY_FILES, new File(params[0]));
-
-			// Execute HTTP Post Request
-			HttpResponse response = Utils.makeRequest(
-					Constants.FETCH_IDENTITY_URL, holder);
-			if (response != null) {
-				responseString = EntityUtils.toString(response.getEntity());
-			}
-
-		} catch (ClientProtocolException e) {
-			e.printStackTrace();
+			JSONObject uploadResult = cloudinary.uploader().upload(new FileInputStream(file), null);
+			url = (String) uploadResult.getString("url");
 		} catch (IOException e) {
+			// TODO Auto-generated catch block
 			e.printStackTrace();
 		} catch (JSONException e) {
+			// TODO Auto-generated catch block
 			e.printStackTrace();
 		}
+		System.out.println("URL is " + url);
+
+		try {
+			com.mashape.unirest.http.HttpResponse<JsonNode> response = Unirest
+					.post("https://lambda-face-recognition.p.mashape.com/recognize")
+					.header("X-Mashape-Key",
+							"gMoueY07U1mshpinwogEUEk0B13Qp1TUNLejsnkH2IwTJ9iEWF")
+					.field("album", "TEST_NEW")
+					.field("albumkey",
+							"7bcc2ac04255c7d4859547b05120c2535e84f624b72f9dd42959a0932a91e557")
+					.field("urls", url).asJson();
+			responseString = response.getBody().toString();
+			System.out.println("response is " + response.getBody().toString());
+		} catch (UnirestException e1) {
+			// TODO Auto-generated catch block
+			e1.printStackTrace();
+		}
+
 		return responseString;
 	}
 
